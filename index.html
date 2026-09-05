@@ -686,7 +686,7 @@ async function syncGmail(){
   if(!scriptUrl){toast('⚠️ Configura la URL primero');return;}
   setSyncBar(true,'Leyendo Gmail…');
   try{
-    const data=await api({action:'gmail',days:7});
+    const data=await api({action:'gmail',days:20});
     if(data.error){toast('❌ '+data.error);setSyncBar(false);return;}
     if(Array.isArray(data)){
       // Filtrar emails ya confirmados (por ID de Gmail o por contenido duplicado)
@@ -857,12 +857,32 @@ function parseEmail(text){
     const desc=extractComercio(text);
     if(monto){const d=desc||'Compra BCI Débito';return{descripcion:d,monto:clp(monto[1]),fecha:isoDate(fecha?fecha[1]:''),cuenta:'BCI Corriente',tipo:'cargo',categoria:categorize(d)};}
   }
+  if(/Titular de la cuenta de origen/i.test(text)){
+    // "Comprobante de Transferencia de Fondos": un tercero (empresa/cliente) te transfiere (sueldo, pagos, etc).
+    const montoT=text.match(/Monto transferido\s*:?\s*\$?\s*([\d.]+)/i);
+    const titular=text.match(/Titular de la cuenta de origen\s*:?\s*([^\n]+)/i);
+    const comentT=text.match(/Comentario para el destinatario\s*:?\s*([^\n]+)/i);
+    const fechaAb=text.match(/Fecha de abono\s*:?\s*([\d\/]+)/i);
+    const saliente=/desde su cuenta|desde tu cuenta/i.test(text);
+    if(montoT){
+      const quien=titular?titular[1].trim():'Transferencia';
+      const notaT=comentT?comentT[1].trim():'';
+      const descT='Transferencia: '+quien+(notaT?' ('+notaT+')':'');
+      return{descripcion:descT,monto:clp(montoT[1]),fecha:isoDate(fechaAb?fechaAb[1]:''),cuenta:'BCI Corriente',tipo:saliente?'cargo':'abono',categoria:'Transferencia'};
+    }
+  }
   if(/Aviso de Transferencia|Monto transferido/i.test(text)){
     const monto=text.match(/Monto\s+(?:transferido|recibido)[:\s]*\$?\s*([\d.]+)/i);
     const dest=text.match(/(?:destinatario|destinataria)\s+([^\n]+)/i);
     const fecha=text.match(/Fecha\s+(?:de\s+abono\s+)?([\d\/]+)/i);
     const inc=/Has recibido|recibida/i.test(text);
-    if(monto){const d=dest?'Transferencia: '+dest[1].trim():'Transferencia BCI';return{descripcion:d,monto:clp(monto[1]),fecha:isoDate(fecha?fecha[1]:''),cuenta:'BCI Corriente',tipo:inc?'abono':'cargo',categoria:'Transferencia'};}
+    const remitente=text.match(/transferencia de fondos de\s+([^\n]+?)\s+hacia/i);
+    if(monto){
+      let d;
+      if(inc&&remitente) d='Transferencia: '+remitente[1].trim();
+      else d=dest?'Transferencia: '+dest[1].trim():'Transferencia BCI';
+      return{descripcion:d,monto:clp(monto[1]),fecha:isoDate(fecha?fecha[1]:''),cuenta:'BCI Corriente',tipo:inc?'abono':'cargo',categoria:'Transferencia'};
+    }
   }
   if(/Tu compra con App Bci|N[uú]mero de cuenta.*Monto/i.test(text)){
     const monto=text.match(/Monto\s*\$?\s*([\d.]+)/i);
