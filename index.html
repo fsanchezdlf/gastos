@@ -261,7 +261,7 @@ input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
     </div>
     <div class="row2">
       <div class="fgroup"><label>Categoría</label><select id="fCat"></select></div>
-      <div class="fgroup"><label>Cuenta</label><select id="fAcct"><option>BCI Corriente</option><option>BCI Prima</option><option>Tenpo Crédito</option><option>Tenpo Vista</option></select></div>
+      <div class="fgroup"><label>Cuenta</label><select id="fAcct"><option>Itaú Corriente</option><option>Itaú TC</option><option>Falabella Corriente</option><option>Falabella CMR</option><option>BCI Corriente</option><option>BCI Prima</option><option>Tenpo Crédito</option><option>Tenpo Vista</option></select></div>
     </div>
     <div class="row2">
       <div class="fgroup"><label>Fecha</label><input type="date" id="fDate"></div>
@@ -417,7 +417,7 @@ input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
       <div class="fgroup"><label>Monto (CLP)</label><input type="number" id="eAmt" inputmode="numeric"></div>
       <div class="row2">
         <div class="fgroup"><label>Categoría</label><select id="eCat"></select></div>
-        <div class="fgroup"><label>Cuenta</label><select id="eAcct"><option>BCI Corriente</option><option>BCI Prima</option><option>Tenpo Crédito</option><option>Tenpo Vista</option></select></div>
+        <div class="fgroup"><label>Cuenta</label><select id="eAcct"><option>Itaú Corriente</option><option>Itaú TC</option><option>Falabella Corriente</option><option>Falabella CMR</option><option>BCI Corriente</option><option>BCI Prima</option><option>Tenpo Crédito</option><option>Tenpo Vista</option></select></div>
       </div>
       <div class="row2">
         <div class="fgroup"><label>Fecha</label><input type="date" id="eDate"></div>
@@ -460,12 +460,14 @@ function saveCustomLabels(){localStorage.setItem('gas_labels',JSON.stringify(cus
 function labelByName(n){return allLabels().find(l=>l.name===n)||null;}
 
 // ════ CONSTANTS ════
-const CATS=['Supermercado','Delivery / Comida','Transporte','Servicios Básicos','Seguros','Salud','Entretenimiento','Compras Online','Retail','Mascotas','Gastos Comunes','Gastos Financieros','Municipalidad','Transferencia','Ingreso / Sueldo','Otros'];
-const CAT_ICO={'Supermercado':'🛒','Delivery / Comida':'🍔','Transporte':'🚗','Servicios Básicos':'💡','Seguros':'🛡️','Salud':'🏥','Entretenimiento':'🎮','Compras Online':'📦','Retail':'🛍️','Mascotas':'🐾','Gastos Comunes':'🏢','Gastos Financieros':'💳','Municipalidad':'🏛️','Transferencia':'↔️','Ingreso / Sueldo':'💰','Otros':'📌'};
-const CAT_CLR={'Supermercado':'#2f855a','Delivery / Comida':'#c05621','Transporte':'#2b6cb0','Servicios Básicos':'#744210','Seguros':'#553c9a','Salud':'#9b2c2c','Entretenimiento':'#276749','Compras Online':'#2c7a7b','Retail':'#b7791f','Mascotas':'#285e61','Gastos Comunes':'#4a5568','Gastos Financieros':'#e53e3e','Municipalidad':'#2d3748','Transferencia':'#553c9a','Ingreso / Sueldo':'#38a169','Otros':'#718096'};
+const CATS=['Supermercado','Delivery / Comida','Transporte','Servicios Básicos','Seguros','Salud','Entretenimiento','Compras Online','Retail','Mascotas','Gastos Comunes','Gastos Financieros','Municipalidad','Transferencia','Ingreso / Sueldo','Traspaso propio','Pago Tarjeta','Otros'];
+const CAT_ICO={'Supermercado':'🛒','Delivery / Comida':'🍔','Transporte':'🚗','Servicios Básicos':'💡','Seguros':'🛡️','Salud':'🏥','Entretenimiento':'🎮','Compras Online':'📦','Retail':'🛍️','Mascotas':'🐾','Gastos Comunes':'🏢','Gastos Financieros':'💳','Municipalidad':'🏛️','Transferencia':'↔️','Ingreso / Sueldo':'💰','Traspaso propio':'🔁','Pago Tarjeta':'🧾','Otros':'📌'};
+const CAT_CLR={'Supermercado':'#2f855a','Delivery / Comida':'#c05621','Transporte':'#2b6cb0','Servicios Básicos':'#744210','Seguros':'#553c9a','Salud':'#9b2c2c','Entretenimiento':'#276749','Compras Online':'#2c7a7b','Retail':'#b7791f','Mascotas':'#285e61','Gastos Comunes':'#4a5568','Gastos Financieros':'#e53e3e','Municipalidad':'#2d3748','Transferencia':'#553c9a','Ingreso / Sueldo':'#38a169','Traspaso propio':'#a0aec0','Pago Tarjeta':'#975a16','Otros':'#718096'};
 const CAT_MAP={'Supermercado':['JUMBO','SANTA ISABEL','TOTTUS','LIDER','UNIMARC','ABASTO'],'Delivery / Comida':['UBER EAT','UBEREATS','SODA','FILIPPO','NIU SUSHI','MINIMARKET','PATAGONIA'],'Transporte':['UBER TRIP','SHELL','COPEC','SABA','PARKING'],'Servicios Básicos':['AGUAS ANDINA','METROGAS','ENEL','ENTEL','SERVIPAG','UNIRED'],'Seguros':['BCI SEGUROS','SEGUROS'],'Salud':['ISAPRE','CLINICA','FARMACIA','INTEGRAVET','DR PET','COLMENA'],'Entretenimiento':['GOOGLE PLAY','SPOTIFY','NETFLIX','YOUTUBE'],'Compras Online':['ALIEXPRESS','MERCADOPAGO','MERPAGO','HOLAFLY'],'Retail':['EASY','FALABELLA','PARIS','VANS','CASA IDEAS'],'Mascotas':['SUPERZOO','PETCO'],'Gastos Comunes':['COMUNIDAD EDIF'],'Gastos Financieros':['COMISION','MANTENCION','IMPUESTO'],'Municipalidad':['MUNICIPALIDAD'],'Transferencia':['TRANSFERENCIA'],'Ingreso / Sueldo':['ABONO PNOL','SUELDO']};
 const MNTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const ACCTS=['BCI Corriente','BCI Prima','Tenpo Crédito','Tenpo Vista'];
+const ACCTS=['Itaú Corriente','Itaú TC','Falabella Corriente','Falabella CMR','BCI Corriente','BCI Prima','Tenpo Crédito','Tenpo Vista'];
+// Categorías que NO son gasto real: movimientos entre tus cuentas y pagos de tarjeta (las compras ya se registran aparte)
+const NO_GASTO=new Set(['Traspaso propio','Pago Tarjeta']);
 
 // ════ STATE ════
 let txns=[], pending=[], editId=null, activeLabelFilter=null;
@@ -510,6 +512,7 @@ function initSelects(){
 async function loadAll(){
   if(!scriptUrl)return;
   setSyncBar(true,'Cargando desde Google Sheets…');
+  loadOwnConfig();
   try{
     const data=await api({});
     if(Array.isArray(data)){
@@ -579,8 +582,8 @@ function nextMonth(){curM++;if(curM>11){curM=0;curY++;}renderHome();}
 function renderHome(){
   document.getElementById('monthLabel').textContent=MNTHS[curM]+' '+curY;
   const mt=monthTxns();
-  const cargo=mt.filter(t=>t.type==='cargo').reduce((s,t)=>s+t.amount,0);
-  const abono=mt.filter(t=>t.type==='abono').reduce((s,t)=>s+t.amount,0);
+  const cargo=mt.filter(t=>t.type==='cargo'&&!NO_GASTO.has(t.category)).reduce((s,t)=>s+t.amount,0);
+  const abono=mt.filter(t=>t.type==='abono'&&!NO_GASTO.has(t.category)).reduce((s,t)=>s+t.amount,0);
   document.getElementById('sumC').textContent=fmtClp(cargo);
   document.getElementById('sumA').textContent=fmtClp(abono);
   document.getElementById('sumN').textContent=mt.length;
@@ -646,7 +649,7 @@ function renderTxList(mt){
 
 function renderCatList(mt){
   const el=document.getElementById('catList');
-  const cargos=mt.filter(t=>t.type==='cargo');
+  const cargos=mt.filter(t=>t.type==='cargo'&&!NO_GASTO.has(t.category));
   const total=cargos.reduce((s,t)=>s+t.amount,0);
   if(!total){el.innerHTML='<div class="empty"><div class="ico2">📊</div><p>Sin gastos este mes</p></div>';return;}
   const bycat={};
@@ -844,7 +847,131 @@ function extractComercio(text){
   return val||null;
 }
 
+// ── BANCOS NUEVOS (Itaú / Banco Falabella) + cuentas propias ──────────
+// Cuentas propias: se usan para (1) saber a qué cuenta va/viene un movimiento
+// y (2) marcar traspasos entre cuentas propias como 'Traspaso propio' (no son gasto).
+// OJO: este archivo se publica en GitHub Pages (repo público). El RUT y los números de cuenta
+// NO se escriben aquí: se cargan desde el backend (Code.gs, action=config) al abrir la app.
+var OWN_RUT = '';
+var OWN_ACCTS = {};
+async function loadOwnConfig(){
+  try{const c=await api({action:'config'});if(c&&c.accts){OWN_ACCTS=c.accts;OWN_RUT=c.rut||'';}}catch(e){}
+}
+function acctName(num) {
+  var d = String(num || '').replace(/\D/g, '').replace(/^0+/, '');
+  return OWN_ACCTS[d] || null;
+}
+function isOwnRut(s) { return !!OWN_RUT && String(s || '').replace(/[^\dkK]/g, '').indexOf(OWN_RUT) === 0; }
+// Campo "Etiqueta | valor" o "Etiqueta\n| valor" o "Etiqueta: valor"
+function fld(body, label) {
+  // Toma la ÚLTIMA coincidencia: en Itaú el título "Datos de la Cuenta de Destino" aparece antes del campo real "Cuenta de destino"
+  var re = new RegExp(label + '\\s*:?[\\s|]*([^|\\n]+)', 'gi'), m, last = null;
+  while ((m = re.exec(String(body))) !== null) last = m;
+  return last ? last[1].replace(/^\s+|\s+$/g, '') : null;
+}
+function money(s) { var m = String(s || '').match(/\$\s*([\d.,]+)/); return m ? parseInt(m[1].replace(/[.,]/g, '')) || 0 : 0; }
+function dmy(s) {
+  var m = String(s || '').match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if (!m) return '';
+  return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+}
+function traspaso(desc, monto, fecha, cuenta, tipo) {
+  return { descripcion: desc, monto: monto, fecha: fecha, cuenta: cuenta, tipo: tipo, categoria: 'Traspaso propio' };
+}
+
+function parseNewBanks(subject, body, from) {
+  // getPlainBody() trae *negritas* con asteriscos y corta frases con saltos de línea:
+  // se limpian los asteriscos y las detecciones se hacen sobre 'flat' (todo en una línea)
+  var b = String(body || '').replace(/\*/g, '').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n');
+  var flat = b.replace(/\s+/g, ' ');
+  var s = String(subject || ''), f = String(from || '').toLowerCase();
+
+  // 1) Itaú: comprobante de transferencia realizada (transferencias@itau.cl)
+  if (/comprobante electr[oó]nico de transferencia de fondos realizada/i.test(flat)) {
+    var monto = money(fld(b, 'Monto'));
+    var nombre = fld(b, 'Nombre') || 'Transferencia';
+    var ctaDest = fld(b, 'Cuenta de destino');
+    var rut = fld(b, 'Rut');
+    var origen = acctName(fld(b, 'Cuenta Personal')) || 'Itaú Corriente';
+    var fecha = dmy(fld(b, 'Fecha - Hora'));
+    if (!monto) return null;
+    var destOwn = acctName(ctaDest);
+    if (destOwn || isOwnRut(rut)) return traspaso('Traspaso a ' + (destOwn || nombre), monto, fecha, origen, 'cargo');
+    return { descripcion: 'Transferencia: ' + nombre, monto: monto, fecha: fecha, cuenta: origen, tipo: 'cargo', categoria: 'Transferencia' };
+  }
+  // 2) Itaú: copia al destinatario (solo te llega si el destino eres tú → abono en la cuenta destino)
+  if (/ha instruido una transferencia de fondos con el siguiente detalle/i.test(flat) && /Banco Destino/i.test(flat)) {
+    var montoC = money(fld(b, 'Monto'));
+    var dest = acctName(fld(b, 'Numero Cuenta'));
+    var fechaC = dmy((flat.match(/con fecha\s+([\d\/-]+)/i) || [0, ''])[1]);
+    if (!montoC || !dest) return null;
+    return traspaso('Traspaso desde Itaú Corriente', montoC, fechaC, dest, 'abono');
+  }
+  // 3) Itaú: pago de cuentas/servicios desde la cuenta corriente
+  if (/Has emitido un pago con [eé]xito/i.test(flat)) {
+    var montoP = money(b.match(/has pagado[\s\S]{0,40}?\$\s*[\d.,]+/i) ? b.match(/has pagado[\s\S]{0,40}?\$\s*[\d.,]+/i)[0] : '');
+    var com = fld(b, 'Comercio') || 'Pago Itaú';
+    var ctaP = b.match(/cuenta corriente N[°º]?\s*(\d+)/i);
+    if (!montoP) return null;
+    return { descripcion: com, monto: montoP, fecha: dmy(fld(b, 'Fecha de pago')), cuenta: (ctaP && acctName(ctaP[1])) || 'Itaú Corriente', tipo: 'cargo', categoria: categorize(com) };
+  }
+  // 4) Itaú: pago de tarjeta de crédito (nacional o internacional)
+  if (/Pagaste tu tarjeta de cr[eé]dito/i.test(flat)) {
+    var pesos = b.match(/Monto en pesos[\s|]*\$\s*([\d.,]+)/i);
+    var montoTC = pesos ? parseInt(pesos[1].replace(/[.,]/g, '')) : money(fld(b, 'Monto'));
+    var hacia = (fld(b, 'Hacia') || 'tarjeta').replace(/[\sx*-]*\d{4}$/i, '').replace(/\s+[x*][x*\s-]*$/i, '');
+    var desdeTC = acctName(fld(b, 'Desde')) || 'Itaú Corriente';
+    var intl = /internacional/i.test(b) ? ' (internacional)' : '';
+    if (!montoTC) return null;
+    return { descripcion: 'Pago TC ' + hacia + intl, monto: montoTC, fecha: dmy(fld(b, 'Fecha del pago')), cuenta: desdeTC, tipo: 'cargo', categoria: 'Pago Tarjeta' };
+  }
+  // 5) Banco Falabella: transferencia realizada
+  if (/tu transferencia est(?:á|&aacute;|a) lista/i.test(flat)) {
+    var montoF = money((b.match(/Monto transferencia\s*\$\s*[\d.,]+/i) || [''])[0]);
+    var nomF = (b.match(/Nombre destinatario\s*([^\n]+)/i) || [0, 'Transferencia'])[1].trim();
+    var rutF = (b.match(/\bRut\s*([\dkK.\-]+)/i) || [0, ''])[1];
+    var ctaF = (b.match(/N[uú]mero de cuenta\s*(\d+)/i) || [0, ''])[1];
+    var origF = acctName((b.match(/Cuenta de origen\s*(?:Cuenta)?\s*([\d ]+)/i) || [0, ''])[1]) || 'Falabella Corriente';
+    var fechaF = dmy((b.match(/Fecha\s*([\d\/-]{8,10})/i) || [0, ''])[1]);
+    if (!montoF) return null;
+    var destF = acctName(ctaF);
+    if (destF || isOwnRut(rutF)) return traspaso('Traspaso a ' + (destF || nomF), montoF, fechaF, origF, 'cargo');
+    return { descripcion: 'Transferencia: ' + nomF, monto: montoF, fecha: fechaF, cuenta: origF, tipo: 'cargo', categoria: 'Transferencia' };
+  }
+  // 6) Banco Falabella: copia al destinatario (tú) → abono en la cuenta destino
+  if (/ha instruido una transferencia de fondos a su cuenta/i.test(flat)) {
+    var montoR = money((b.match(/Monto transferencia\s*\$\s*[\d.,]+/i) || [''])[0]);
+    var ctaR = (b.match(/Cuenta de destino\s*[^\d\n]*(\d+)/i) || [0, ''])[1];
+    var destR = acctName(ctaR);
+    if (!montoR || !destR) return null;
+    return traspaso('Traspaso desde Falabella Corriente', montoR, dmy((b.match(/Fecha\s*([\d\/-]{8,10})/i) || [0, ''])[1]), destR, 'abono');
+  }
+  // 7) Banco Falabella: pago de tarjeta de crédito CMR
+  if (/Aviso de pago de tarjeta de cr[eé]dito/i.test(flat)) {
+    var montoPF = money((b.match(/Monto pagado\s*\$\s*[\d.,]+/i) || [''])[0]);
+    var tarj = (b.match(/Tarjeta pagada\s*([^\n]+)/i) || [0, 'CMR'])[1].trim();
+    var medio = acctName((b.match(/Medio de pago\s*[^\d\n]*\n?\s*([\d ]+)/i) || [0, ''])[1]) || 'Falabella Corriente';
+    if (!montoPF) return null;
+    return { descripcion: 'Pago TC ' + tarj, monto: montoPF, fecha: dmy((b.match(/\bFecha\s+([\d\/-]{8,10})/i) || [0, ''])[1]), cuenta: medio, tipo: 'cargo', categoria: 'Pago Tarjeta' };
+  }
+  // 8) Compras con tarjeta Itaú / Falabella (avisos de compra; formato provisorio hasta ver correos reales)
+  var esItau = /itau/i.test(f) || /Ita[uú]/.test(b);
+  var esFal  = /falabella/i.test(f) || /Banco Falabella|CMR/i.test(b);
+  if ((esItau || esFal) && /compra/i.test(s + ' ' + b) && !/pago de tarjeta|Pagaste/i.test(b)) {
+    var montoK = money(fld(b, 'Monto(?: de la compra| compra)?'));
+    var comK = extractComercio(b);
+    if (montoK && comK) {
+      var debito = /d[eé]bito/i.test(b);
+      var acctK = esItau ? (debito ? 'Itaú Corriente' : 'Itaú TC') : (debito ? 'Falabella Corriente' : 'Falabella CMR');
+      return { descripcion: comK, monto: montoK, fecha: dmy(fld(b, 'Fecha')), cuenta: acctK, tipo: 'cargo', categoria: categorize(comK) };
+    }
+  }
+  return null;
+}
+
 function parseEmail(text){
+  const nb=parseNewBanks('',text,'');if(nb)return nb;
+  text=String(text||'').replace(/\*/g,'');
   if(/Comprobante de compra|Monto transacci/i.test(text)){
     const monto=text.match(/Monto\s+transacci[oó]n[:\s\n]*\$?\s*([\d.]+)/i);
     const desc=text.match(/Comercio[:\s\n]+([^\n]+)/i);
@@ -859,29 +986,31 @@ function parseEmail(text){
   }
   if(/Titular de la cuenta de origen/i.test(text)){
     // "Comprobante de Transferencia de Fondos": un tercero (empresa/cliente) te transfiere (sueldo, pagos, etc).
-    const montoT=text.match(/Monto transferido\s*:?\s*\$?\s*([\d.]+)/i);
+    const montoT=text.match(/Monto transferido\s*:?\s*\$?\s*([\d.,]+)/i);
     const titular=text.match(/Titular de la cuenta de origen\s*:?\s*([^\n]+)/i);
     const comentT=text.match(/Comentario para el destinatario\s*:?\s*([^\n]+)/i);
-    const fechaAb=text.match(/Fecha de abono\s*:?\s*([\d\/]+)/i);
+    const fechaAb=text.match(/Fecha de (?:abono|pago)\s*:?\s*([\d\/]+)/i);
+    const ctaDT=text.match(/Cuenta destinatario\s*:?\s*(\d+)/i);
     const saliente=/desde su cuenta|desde tu cuenta/i.test(text);
     if(montoT){
       const quien=titular?titular[1].trim():'Transferencia';
       const notaT=comentT?comentT[1].trim():'';
       const descT='Transferencia: '+quien+(notaT?' ('+notaT+')':'');
-      return{descripcion:descT,monto:clp(montoT[1]),fecha:isoDate(fechaAb?fechaAb[1]:''),cuenta:'BCI Corriente',tipo:saliente?'cargo':'abono',categoria:'Transferencia'};
+      return{descripcion:descT,monto:clp(montoT[1]),fecha:isoDate(fechaAb?fechaAb[1]:''),cuenta:(ctaDT&&acctName(ctaDT[1]))||'BCI Corriente',tipo:saliente?'cargo':'abono',categoria:'Transferencia'};
     }
   }
   if(/Aviso de Transferencia|Monto transferido/i.test(text)){
     const monto=text.match(/Monto\s+(?:transferido|recibido)[:\s]*\$?\s*([\d.]+)/i);
     const dest=text.match(/(?:destinatario|destinataria)\s+([^\n]+)/i);
-    const fecha=text.match(/Fecha\s+(?:de\s+abono\s+)?([\d\/]+)/i);
+    const fecha=text.match(/Fecha\s+(?:de\s+(?:la\s+)?(?:abono|transferencia)\s+)?([\d\/]+)/i);
     const inc=/Has recibido|recibida/i.test(text);
-    const remitente=text.match(/transferencia de fondos de\s+([^\n]+?)\s+hacia/i);
+    const remitente=text.match(/transferencia de fondos de\s+([\s\S]+?)\s+hacia/i);
     if(monto){
       let d;
-      if(inc&&remitente) d='Transferencia: '+remitente[1].trim();
+      if(inc&&remitente) d='Transferencia: '+remitente[1].replace(/\s+/g,' ').trim();
       else d=dest?'Transferencia: '+dest[1].trim():'Transferencia BCI';
-      return{descripcion:d,monto:clp(monto[1]),fecha:isoDate(fecha?fecha[1]:''),cuenta:'BCI Corriente',tipo:inc?'abono':'cargo',categoria:'Transferencia'};
+      const acctT=/hacia tu cuenta del Banco ITA/i.test(text)?'Itaú Corriente':/hacia tu cuenta del Banco Falabella/i.test(text)?'Falabella Corriente':'BCI Corriente';
+      return{descripcion:d,monto:clp(monto[1]),fecha:isoDate(fecha?fecha[1]:''),cuenta:acctT,tipo:inc?'abono':'cargo',categoria:'Transferencia'};
     }
   }
   if(/Tu compra con App Bci|N[uú]mero de cuenta.*Monto/i.test(text)){
@@ -889,7 +1018,7 @@ function parseEmail(text){
     const fecha=text.match(/Fecha\s+([\d\/]+)/i);
     const desc=extractComercio(text);
     const cta=text.match(/N[uú]mero de cuenta\s+(\d+)/i);
-    if(monto){const acct=cta&&cta[1]==='40233961'?'BCI Prima':'BCI Corriente';const d=desc||'Compra App BCI';return{descripcion:d,monto:clp(monto[1]),fecha:isoDate(fecha?fecha[1]:''),cuenta:acct,tipo:'cargo',categoria:categorize(d)};}
+    if(monto){const acct=cta&&acctName(cta[1])==='BCI Prima'?'BCI Prima':'BCI Corriente';const d=desc||'Compra App BCI';return{descripcion:d,monto:clp(monto[1]),fecha:isoDate(fecha?fecha[1]:''),cuenta:acct,tipo:'cargo',categoria:categorize(d)};}
   }
   return null;
 }
@@ -1132,7 +1261,7 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function today(){return new Date().toISOString().slice(0,10);}
 function fmtClp(n){return '$'+Math.abs(n||0).toLocaleString('es-CL');}
 function fmtDate(s){if(!s)return'—';const d=new Date(s+'T12:00:00');return d.toLocaleDateString('es-CL',{day:'2-digit',month:'short'});}
-function clp(s){return parseInt(String(s||'').replace(/\./g,'').replace(/\$/g,'').replace(/\s/g,''))||0;}
+function clp(s){return parseInt(String(s||'').replace(/[.,]/g,'').replace(/\$/g,'').replace(/\s/g,''))||0;}
 function isoDate(s){const m=String(s).match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/);if(!m)return'';let y=m[3];if(y.length===2)y='20'+y;return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');}
 function hex(cat){return CAT_CLR[cat]||'#718096';}
 function categorize(desc){const u=(desc||'').toUpperCase();for(const[cat,kws]of Object.entries(CAT_MAP)){for(const kw of kws){if(u.includes(kw))return cat;}}return'Otros';}
