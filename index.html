@@ -481,6 +481,8 @@ function saveConfirmedEmailIds(){localStorage.setItem('gas_email_ids',JSON.strin
 // Llave de deduplicación por contenido: fecha+monto+descripción
 function txnKey(t){return`${(t.date||t.fecha||'').slice(0,10)}|${t.amount||t.monto||0}|${(t.description||t.descripcion||'').slice(0,30)}`;}
 function txnExists(t){return txns.some(x=>txnKey(x)===txnKey(t));}
+// Un correo ya confirmado vuelve a aparecer como pendiente si su movimiento fue borrado de la planilla (mismo día y monto ya no existe)
+function txnSameDayAmount(e){return txns.some(x=>x.date===e.fecha&&x.amount===e.monto);}
 
 // ════ INIT ════
 function init(){
@@ -694,7 +696,7 @@ async function syncGmail(){
     if(Array.isArray(data)){
       // Filtrar emails ya confirmados (por ID de Gmail o por contenido duplicado)
       pending=data
-        .filter(e=>!confirmedEmailIds.has(e.emailId)&&!txnExists({date:e.fecha,amount:e.monto,description:e.descripcion}))
+        .filter(e=>!(confirmedEmailIds.has(e.emailId)&&txnSameDayAmount(e))&&!txnExists({date:e.fecha,amount:e.monto,description:e.descripcion}))
         .map(e=>({...e,id:uid(),state:'pending'}));
       renderPending();
       if(pending.length)toast(`📧 ${pending.length} email${pending.length>1?'s':''} nuevos`);
@@ -875,6 +877,17 @@ function dmy(s) {
   if (!m) return '';
   return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
 }
+// Nombre del titular (para avisos que no traen RUT ni número de cuenta, ej. BCI "Has recibido... de Felipe Sanchez")
+function isOwnName(s) { return /felipe/i.test(s || '') && /s[aá]nchez/i.test(s || ''); }
+// Banco de destino → cuenta propia en ese banco
+function bankAcct(s) {
+  s = String(s || '');
+  if (/ita[uú]/i.test(s)) return 'Itaú Corriente';
+  if (/falabella/i.test(s)) return 'Falabella Corriente';
+  if (/tenpo/i.test(s)) return 'Tenpo Vista';
+  if (/bci|tbanc|nova/i.test(s)) return 'BCI Corriente';
+  return null;
+}
 function traspaso(desc, monto, fecha, cuenta, tipo) {
   return { descripcion: desc, monto: monto, fecha: fecha, cuenta: cuenta, tipo: tipo, categoria: 'Traspaso propio' };
 }
@@ -892,10 +905,17 @@ function parseNewBanks(subject, body, from) {
     var nombre = fld(b, 'Nombre') || 'Transferencia';
     var ctaDest = fld(b, 'Cuenta de destino');
     var rut = fld(b, 'Rut');
-    var origen = acctName(fld(b, 'Cuenta Personal')) || 'Itaú Corriente';
+    var origenAcct = acctName(fld(b, 'Cuenta Personal'));
+    var origen = origenAcct || 'Itaú Corriente';
     var fecha = dmy(fld(b, 'Fecha - Hora'));
     if (!monto) return null;
     var destOwn = acctName(ctaDest);
+    // Itaú manda este MISMO comprobante cuando otro cliente Itaú te transfiere a ti (pone tu e-mail como destino):
+    // la cuenta de origen no es tuya y el destino sí → es un ABONO, no un gasto.
+    if (!origenAcct && (destOwn || isOwnRut(rut))) {
+      var quienO = (flat.match(/Cuenta de Origen[\s|]*Nombre[\s|]*([^|]+?)[\s|]*Cuenta Personal/i) || [0, 'Transferencia'])[1];
+      return { descripcion: 'Transferencia: ' + quienO, monto: monto, fecha: fecha, cuenta: destOwn || 'Itaú Corriente', tipo: 'abono', categoria: 'Transferencia' };
+    }
     if (destOwn || isOwnRut(rut)) return traspaso('Traspaso a ' + (destOwn || nombre), monto, fecha, origen, 'cargo');
     return { descripcion: 'Transferencia: ' + nombre, monto: monto, fecha: fecha, cuenta: origen, tipo: 'cargo', categoria: 'Transferencia' };
   }
@@ -954,6 +974,27 @@ function parseNewBanks(subject, body, from) {
     if (!montoPF) return null;
     return { descripcion: 'Pago TC ' + tarj, monto: montoPF, fecha: dmy((b.match(/\bFecha\s+([\d\/-]{8,10})/i) || [0, ''])[1]), cuenta: medio, tipo: 'cargo', categoria: 'Pago Tarjeta' };
   }
+  // 8a) BCI: transferencia que TÚ hiciste ("Realizaste una transferencia de fondos desde tu cuenta N° ...")
+  if (/Realizaste una transferencia de fondos desde tu cuenta/i.test(flat)) {
+    var montoB = money(fld(b, 'Monto transferido'));
+    var origB = acctName((flat.match(/desde tu cuenta N[°º]?\s*(\d+)/i) || [0, ''])[1]) || 'BCI Corriente';
+    var nomB = fld(b, 'Nombre del destinatario') || 'Transferencia';
+    var destB = acctName(fld(b, 'Cuenta de destino'));
+    var fechaB = dmy(fld(b, 'Fecha de abono'));
+    if (!montoB) return null;
+    if (destB) return traspaso('Traspaso a ' + destB, montoB, fechaB, origB, 'cargo');
+    return { descripcion: 'Transferencia: ' + nomB, monto: montoB, fecha: fechaB, cuenta: origB, tipo: 'cargo', categoria: 'Transferencia' };
+  }
+  // 8b) BCI: te transfirieron ("Has recibido una transferencia de fondos de X hacia tu cuenta del Banco Y")
+  var recB = flat.match(/Has recibido una transferencia de fondos de\s+(.+?)\s+hacia tu cuenta del\s+(.+?)\s+Datos/i);
+  if (recB) {
+    var montoRB = money(fld(b, 'Monto recibido'));
+    var acctRB = bankAcct(recB[2]) || 'BCI Corriente';
+    var fechaRB = dmy(fld(b, 'Fecha de la transferencia'));
+    if (!montoRB) return null;
+    if (isOwnName(recB[1])) return traspaso('Traspaso recibido (' + recB[1] + ')', montoRB, fechaRB, acctRB, 'abono');
+    return { descripcion: 'Transferencia: ' + recB[1], monto: montoRB, fecha: fechaRB, cuenta: acctRB, tipo: 'abono', categoria: 'Transferencia' };
+  }
   // 8) Compras con tarjeta Itaú / Falabella (avisos de compra; formato provisorio hasta ver correos reales)
   var esItau = /itau/i.test(f) || /Ita[uú]/.test(b);
   var esFal  = /falabella/i.test(f) || /Banco Falabella|CMR/i.test(b);
@@ -996,7 +1037,10 @@ function parseEmail(text){
       const quien=titular?titular[1].trim():'Transferencia';
       const notaT=comentT?comentT[1].trim():'';
       const descT='Transferencia: '+quien+(notaT?' ('+notaT+')':'');
-      return{descripcion:descT,monto:clp(montoT[1]),fecha:isoDate(fechaAb?fechaAb[1]:''),cuenta:(ctaDT&&acctName(ctaDT[1]))||'BCI Corriente',tipo:saliente?'cargo':'abono',categoria:'Transferencia'};
+      const bancoT=text.match(/hacia (?:su|tu) cuenta del banco\s+([^\n.]+)/i);
+      const ctaT=(ctaDT&&acctName(ctaDT[1]))||(bancoT&&bankAcct(bancoT[1]))||'BCI Corriente';
+      const catT=/remuneraci|sueldo/i.test(notaT)?'Ingreso / Sueldo':'Transferencia';
+      return{descripcion:descT,monto:clp(montoT[1]),fecha:isoDate(fechaAb?fechaAb[1]:''),cuenta:ctaT,tipo:saliente?'cargo':'abono',categoria:catT};
     }
   }
   if(/Aviso de Transferencia|Monto transferido/i.test(text)){
