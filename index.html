@@ -691,7 +691,7 @@ async function syncGmail(){
   if(!scriptUrl){toast('⚠️ Configura la URL primero');return;}
   setSyncBar(true,'Leyendo Gmail…');
   try{
-    const data=await api({action:'gmail',days:20});
+    const data=await api({action:'gmail',days:45});
     if(data.error){toast('❌ '+data.error);setSyncBar(false);return;}
     if(Array.isArray(data)){
       // Filtrar emails ya confirmados (por ID de Gmail o por contenido duplicado)
@@ -727,7 +727,7 @@ function renderPending(){
           <div class="meta"><span class="cat-tag">${e.categoria||'Otros'}</span> · ${e.cuenta}</div>
         </div>
         <div class="ec-right">
-          <div class="ec-amt">-${fmtClp(e.monto)}</div>
+          <div class="ec-amt" style="${e.tipo==='abono'?'color:var(--green)':''}">${e.tipo==='abono'?'+':'-'}${fmtClp(e.monto)}</div>
           <div class="ec-date">${fmtDate(e.fecha)}</div>
           <div class="ec-btns">
             <button class="ebt ebt-ok" onclick="confirmEmail('${e.id}')">✓</button>
