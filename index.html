@@ -357,6 +357,14 @@ input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
 </div>
 
 <!-- ══ PAGE: SETTINGS ══ -->
+<div class="page" id="p-proy">
+  <div class="hdr">
+    <h1>Proyección tarjetas 💳</h1>
+    <div class="sub" id="proySub">—</div>
+  </div>
+  <div id="proyBody" style="padding:14px"></div>
+</div>
+
 <div class="page" id="p-cfg">
   <div class="hdr"><h1>Configuración</h1></div>
   <div class="ssect" style="margin-top:14px">
@@ -439,6 +447,7 @@ input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
   <button class="nb on" id="nb-home" onclick="goPage('home')"><span class="i">🏠</span>Inicio</button>
   <button class="nb" id="nb-add" onclick="goPage('add')"><span class="i">➕</span>Agregar</button>
   <button class="nb" id="nb-shared" onclick="goPage('shared')"><span class="i">🤝</span>Compartidos</button>
+  <button class="nb" id="nb-proy" onclick="goPage('proy')"><span class="i">💳</span>Tarjetas</button>
   <button class="nb" id="nb-cfg" onclick="goPage('cfg')"><span class="i">⚙️</span>Config</button>
 </nav>
 
@@ -460,9 +469,9 @@ function saveCustomLabels(){localStorage.setItem('gas_labels',JSON.stringify(cus
 function labelByName(n){return allLabels().find(l=>l.name===n)||null;}
 
 // ════ CONSTANTS ════
-const CATS=['Supermercado','Delivery / Comida','Transporte','Servicios Básicos','Seguros','Salud','Entretenimiento','Compras Online','Retail','Mascotas','Gastos Comunes','Gastos Financieros','Municipalidad','Transferencia','Ingreso / Sueldo','Traspaso propio','Pago Tarjeta','Otros'];
-const CAT_ICO={'Supermercado':'🛒','Delivery / Comida':'🍔','Transporte':'🚗','Servicios Básicos':'💡','Seguros':'🛡️','Salud':'🏥','Entretenimiento':'🎮','Compras Online':'📦','Retail':'🛍️','Mascotas':'🐾','Gastos Comunes':'🏢','Gastos Financieros':'💳','Municipalidad':'🏛️','Transferencia':'↔️','Ingreso / Sueldo':'💰','Traspaso propio':'🔁','Pago Tarjeta':'🧾','Otros':'📌'};
-const CAT_CLR={'Supermercado':'#2f855a','Delivery / Comida':'#c05621','Transporte':'#2b6cb0','Servicios Básicos':'#744210','Seguros':'#553c9a','Salud':'#9b2c2c','Entretenimiento':'#276749','Compras Online':'#2c7a7b','Retail':'#b7791f','Mascotas':'#285e61','Gastos Comunes':'#4a5568','Gastos Financieros':'#e53e3e','Municipalidad':'#2d3748','Transferencia':'#553c9a','Ingreso / Sueldo':'#38a169','Traspaso propio':'#a0aec0','Pago Tarjeta':'#975a16','Otros':'#718096'};
+const CATS=['Supermercado','Delivery / Comida','Transporte','Servicios Básicos','Seguros','Salud','Entretenimiento','Compras Online','Retail','Mascotas','Gastos Comunes','Gastos Financieros','Municipalidad','Transferencia','Ingreso / Sueldo','Traspaso propio','Pago Tarjeta','Pensión de alimentos','Hogar compartido','Reembolso','Otros'];
+const CAT_ICO={'Supermercado':'🛒','Delivery / Comida':'🍔','Transporte':'🚗','Servicios Básicos':'💡','Seguros':'🛡️','Salud':'🏥','Entretenimiento':'🎮','Compras Online':'📦','Retail':'🛍️','Mascotas':'🐾','Gastos Comunes':'🏢','Gastos Financieros':'💳','Municipalidad':'🏛️','Transferencia':'↔️','Ingreso / Sueldo':'💰','Traspaso propio':'🔁','Pago Tarjeta':'🧾','Pensión de alimentos':'🤝','Hogar compartido':'🏠','Reembolso':'↩️','Otros':'📌'};
+const CAT_CLR={'Supermercado':'#2f855a','Delivery / Comida':'#c05621','Transporte':'#2b6cb0','Servicios Básicos':'#744210','Seguros':'#553c9a','Salud':'#9b2c2c','Entretenimiento':'#276749','Compras Online':'#2c7a7b','Retail':'#b7791f','Mascotas':'#285e61','Gastos Comunes':'#4a5568','Gastos Financieros':'#e53e3e','Municipalidad':'#2d3748','Transferencia':'#553c9a','Ingreso / Sueldo':'#38a169','Traspaso propio':'#a0aec0','Pago Tarjeta':'#975a16','Pensión de alimentos':'#97266d','Hogar compartido':'#285e61','Reembolso':'#718096','Otros':'#718096'};
 const CAT_MAP={'Supermercado':['JUMBO','SANTA ISABEL','TOTTUS','LIDER','UNIMARC','ABASTO'],'Delivery / Comida':['UBER EAT','UBEREATS','SODA','FILIPPO','NIU SUSHI','MINIMARKET','PATAGONIA'],'Transporte':['UBER TRIP','SHELL','COPEC','SABA','PARKING'],'Servicios Básicos':['AGUAS ANDINA','METROGAS','ENEL','ENTEL','SERVIPAG','UNIRED'],'Seguros':['BCI SEGUROS','SEGUROS'],'Salud':['ISAPRE','CLINICA','FARMACIA','INTEGRAVET','DR PET','COLMENA'],'Entretenimiento':['GOOGLE PLAY','SPOTIFY','NETFLIX','YOUTUBE'],'Compras Online':['ALIEXPRESS','MERCADOPAGO','MERPAGO','HOLAFLY'],'Retail':['EASY','FALABELLA','PARIS','VANS','CASA IDEAS'],'Mascotas':['SUPERZOO','PETCO'],'Gastos Comunes':['COMUNIDAD EDIF'],'Gastos Financieros':['COMISION','MANTENCION','IMPUESTO'],'Municipalidad':['MUNICIPALIDAD'],'Transferencia':['TRANSFERENCIA'],'Ingreso / Sueldo':['ABONO PNOL','SUELDO']};
 const MNTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const ACCTS=['Itaú Corriente','Itaú TC','Falabella Corriente','Falabella CMR','BCI Corriente','BCI Prima','Tenpo Crédito','Tenpo Vista'];
@@ -559,6 +568,39 @@ function apiNoWait(params){
   fetch(url.toString()).catch(()=>{});
 }
 
+// ════ PROYECCIÓN TARJETAS ════
+function proyDias(f){const d=Math.round((new Date(f+'T12:00:00')-new Date(new Date().toDateString()+' 12:00'))/864e5);return d<0?'ya cerró':d===0?'hoy':'en '+d+' día'+(d===1?'':'s');}
+function proyRow(l,v,o){o=o||{};return `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;${o.b?'font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:10px':''}${o.mute?'color:var(--text2)':''}"><span>${l}</span><span>${o.neg?'−':''}${fmtClp(v)}</span></div>`;}
+async function renderProy(){
+  const box=document.getElementById('proyBody');
+  box.innerHTML='<div style="text-align:center;color:var(--text2);padding:30px">Cargando…</div>';
+  let d;try{d=await api({action:'proytc'});}catch(e){box.innerHTML='<div style="padding:20px;color:var(--red)">No se pudo cargar la proyección.</div>';return;}
+  const T=(d&&d.tarjetas)||[];
+  if(!T.length){box.innerHTML='<div style="padding:20px;color:var(--text2)">Aún no hay datos de proyección. Sube los movimientos no facturados para generarla.</div>';return;}
+  document.getElementById('proySub').textContent='Datos al '+fmtDate(d.actualizado)+' · se actualiza al subir no facturados';
+  let tMin=0,tMax=0,h='';
+  T.forEach(t=>{
+    const base=t.cuotas+t.compras+t.comisiones+(t.nuevas_inciertas?0:t.nuevas_cuotas);
+    const max=base+(t.nuevas_inciertas?t.nuevas_cuotas:0);
+    tMin+=base;tMax+=max;
+    const rango=max>base?fmtClp(base)+' – '+fmtClp(max):fmtClp(base);
+    h+=`<div style="background:var(--surface);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700;font-size:16px">${t.nombre}</div><div style="font-size:12px;color:var(--text2)">cierra ${fmtDate(t.cierre)} (${proyDias(t.cierre)})</div></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Vence ${fmtDate(t.vence)}${t.vence_estimado?' (estimado)':''}</div>
+      <div style="font-size:26px;font-weight:800;margin:6px 0 10px">${rango}</div>
+      ${proyRow('Cuotas ya comprometidas',t.cuotas)}
+      ${proyRow('Compras sin cuotas del período',t.compras)}
+      ${t.nuevas_cuotas&&!t.nuevas_inciertas?proyRow('Primeras cuotas de compras nuevas',t.nuevas_cuotas):''}
+      ${proyRow('Comisión e impuestos (est.)',t.comisiones)}
+      ${t.nuevas_inciertas?proyRow('Si facturan ya las cuotas nuevas (+)',t.nuevas_cuotas,{mute:1}):''}
+      ${t.reembolsable?proyRow('Del total, reembolsable (trabajo / Maitencillo)',t.reembolsable,{mute:1,neg:1}):''}
+      ${t.calendario&&t.calendario.length?`<div class="section-head" style="margin-top:14px">Cuotas próximos meses</div>`+t.calendario.map(c=>proyRow(c.mes,c.comprometido+(c.nuevas||0),{mute:1})).join(''):''}
+    </div>`;
+  });
+  h=`<div style="background:var(--blue-l);border-radius:var(--r);padding:14px 16px;margin-bottom:14px"><div style="font-size:12px;color:var(--text2)">Total a pagar en diciembre</div><div style="font-size:24px;font-weight:800;color:var(--blue)">${tMax>tMin?fmtClp(tMin)+' – '+fmtClp(tMax):fmtClp(tMin)}</div></div>`+h;
+  box.innerHTML=h;
+}
+
 // ════ NAVIGATION ════
 function goPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
@@ -568,6 +610,7 @@ function goPage(name){
   if(name==='home')renderHome();
   if(name==='cfg'){document.getElementById('cfgCount').textContent=txns.length;}
   if(name==='shared')initSharedPage();
+  if(name==='proy')renderProy();
 }
 
 function switchTab(id,btn){
