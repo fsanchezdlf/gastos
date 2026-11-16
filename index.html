@@ -199,6 +199,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
     <div class="scard"><div class="lbl">Transac.</div><div class="val" id="sumN">0</div></div>
   </div>
 
+  <div id="alertBox"></div>
+
   <!-- Pending emails section -->
   <div class="pending-section" id="pendingSection" style="display:none">
     <div class="section-head">📧 Para confirmar <span class="cnt-badge" id="pendingCount">0</span></div>
@@ -210,6 +212,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
     <button class="tab" onclick="switchTab('tc-cats',this)">Categorías</button>
     <button class="tab" onclick="switchTab('tc-accts',this)">Cuentas</button>
     <button class="tab" onclick="switchTab('tc-trend',this);renderTrend()">Tendencia</button>
+    <button class="tab" onclick="switchTab('tc-budget',this);renderBudget()">Presupuesto</button>
+    <button class="tab" onclick="switchTab('tc-review',this);renderReview()">Revisar</button>
   </div>
 
   <div class="tc on" id="tc-txns">
@@ -218,6 +222,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue);background:#fff}
   </div>
   <div class="tc" id="tc-cats"><div class="catlist" id="catList"></div></div>
   <div class="tc" id="tc-accts"><div class="catlist" id="acctList"></div></div>
+  <div class="tc" id="tc-budget"><div id="budgetBox" style="padding:14px"></div></div>
+  <div class="tc" id="tc-review"><div id="reviewBox" style="padding:14px"></div></div>
   <div class="tc" id="tc-trend">
     <div style="padding:16px 14px 8px;display:flex;align-items:center;justify-content:space-between">
       <div style="font-size:13px;font-weight:600;color:var(--text2)">Últimos meses</div>
@@ -462,6 +468,7 @@ const DEFAULT_LABELS=[
   {name:'Auto',icon:'🚗',color:'#276749'},
   {name:'Cuota',icon:'💳',color:'#9b2c2c'},
   {name:'Salud',icon:'💊',color:'#285e61'},
+  {name:'Reembolsable',icon:'↩️',color:'#2c7a7b'},
 ];
 let customLabels=JSON.parse(localStorage.getItem('gas_labels')||'[]');
 function allLabels(){return[...DEFAULT_LABELS,...customLabels];}
@@ -529,6 +536,7 @@ async function loadAll(){
     if(Array.isArray(data)){
       txns=data.map(normalizeRow);
       renderHome();
+      loadExtras();
       setSyncOk();
     } else if(data.error){
       setSyncErr(data.error);
@@ -568,37 +576,289 @@ function apiNoWait(params){
   fetch(url.toString()).catch(()=>{});
 }
 
-// ════ PROYECCIÓN TARJETAS ════
-function proyDias(f){const d=Math.round((new Date(f+'T12:00:00')-new Date(new Date().toDateString()+' 12:00'))/864e5);return d<0?'ya cerró':d===0?'hoy':'en '+d+' día'+(d===1?'':'s');}
+// ════ MEJORAS: PRESUPUESTO, META, REEMBOLSABLES, REVISAR, ALERTAS, TARJETAS ════
+// La configuración (metas, patrones) y los datos de tarjetas viven en el Sheet (pestaña ProyTC), no en este archivo público.
+const CFG_DEFAULT={
+  etapas:[{desde:'2000-01',meta:0,ahorro:0}],
+  pie:{meta:0,hasta:'',actual:0,kpiExtra:0},
+  fijas:['Pensión de alimentos','Hogar compartido','Gastos Comunes','Servicios Básicos','Seguros','Gastos Financieros','Municipalidad','Familia'],
+  reembPatrones:'',
+  cardAcct:['Itaú TC','Falabella CMR','Tenpo Crédito'],
+  alertaCardDias:3, alertaGrande:150000
+};
+let appCfg=JSON.parse(JSON.stringify(CFG_DEFAULT)), proyTC=null;
+
+async function loadExtras(){
+  try{const c=await api({action:'appcfg'});
+    if(c&&!c.error&&c.etapas)appCfg=Object.assign({},CFG_DEFAULT,c,{pie:Object.assign({},CFG_DEFAULT.pie,c.pie||{})});}catch(e){}
+  try{const p=await api({action:'proytc'});if(p&&p.tarjetas)proyTC=p;}catch(e){}
+  renderExtras();
+}
+function renderExtras(){
+  try{renderAlerts();renderBudget();renderReview();}catch(e){console.error(e);}
+}
+async function saveCfg(){
+  try{await fetch(scriptUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'appcfg',data:appCfg})});toast('✅ Guardado');}
+  catch(e){toast('❌ '+e.message);}
+}
+
+// ── Helpers ──
+const ymKey=(y,m)=>y+'-'+String(m+1).padStart(2,'0');
+const sumAmt=a=>a.reduce((s,t)=>s+t.amount,0);
+function etapaFor(ym){let e=appCfg.etapas[0];appCfg.etapas.forEach(x=>{if(x.desde<=ym)e=x;});return e;}
+function isReemb(t){return t.label==='Reembolsable';}
+function isCuotaLbl(t){return t.label==='Cuota';}
+function isVar(t){
+  return t.type==='cargo'&&!NO_GASTO.has(t.category)&&!appCfg.fijas.includes(t.category)&&t.category!=='Ingreso / Sueldo'&&t.category!=='Reembolso'&&!isReemb(t)&&!isCuotaLbl(t);
+}
+function monthVar(y,m){const k=ymKey(y,m);return txns.filter(t=>t.date.slice(0,7)===k&&isVar(t));}
+function daysTo(iso){const a=new Date(iso+'T12:00:00'),b=new Date(new Date().toDateString()+' 12:00');return Math.round((a-b)/864e5);}
+function barHtml(pct,color,mark){
+  const w=Math.max(0,Math.min(100,pct));
+  return `<div style="position:relative;height:12px;background:var(--border);border-radius:6px;overflow:hidden"><div style="height:100%;width:${w}%;background:${color};border-radius:6px"></div>${mark!=null?`<div style="position:absolute;top:0;bottom:0;width:2px;background:#1a202c;left:${Math.min(99,Math.max(0,mark))}%"></div>`:''}</div>`;
+}
+function cardBox(inner){return `<div style="background:var(--surface);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:14px">${inner}</div>`;}
+function kv(l,v,o){o=o||{};return `<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;${o.mute?'color:var(--text2);':''}${o.b?'font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:9px;':''}"><span>${l}</span><span>${v}</span></div>`;}
+
+// ── 1) PRESUPUESTO vs REAL + 3) REEMBOLSABLES + 7) META DE AHORRO ──
+function renderBudget(){
+  const el=document.getElementById('budgetBox');if(!el)return;
+  const k=ymKey(curY,curM),et=etapaFor(k),meta=et.meta||0;
+  const mv=monthVar(curY,curM),real=sumAmt(mv);
+  const now=new Date(),isCur=now.getFullYear()===curY&&now.getMonth()===curM;
+  const dim=new Date(curY,curM+1,0).getDate(),dia=isCur?now.getDate():dim;
+  const proy=isCur?Math.round(real/Math.max(dia,1)*dim):real;
+  const pct=meta?Math.round(real/meta*100):0,pctP=meta?Math.round(proy/meta*100):0;
+  const col=!meta?'#a0aec0':real>meta?'#e53e3e':proy>meta?'#dd6b20':'#38a169';
+  let h='';
+  if(!meta){
+    h+=cardBox('<div style="font-size:13px;color:var(--text2)">Aún no hay meta de gasto variable configurada para este mes.</div>');
+  }else{
+    h+=cardBox(`<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700">Gasto variable de ${MNTHS[curM]}</div><div style="font-size:12px;color:var(--text2)">meta ${fmtClp(meta)}</div></div>
+      <div style="font-size:26px;font-weight:800;margin:6px 0 8px;color:${col}">${fmtClp(real)} <span style="font-size:13px;font-weight:600;color:var(--text2)">${pct}%</span></div>
+      ${barHtml(pct,col,isCur?pctP:null)}
+      <div style="font-size:12px;color:var(--text2);margin-top:8px">${isCur?`A este ritmo cierras en <b>${fmtClp(proy)}</b> (${pctP}% de la meta). `:''}${real>meta?`Te pasaste por ${fmtClp(real-meta)}.`:`Te quedan ${fmtClp(meta-real)}.`}</div>
+      ${et.ahorro?`<div style="font-size:12px;color:var(--text2);margin-top:4px">Ahorro del plan en esta etapa: ${fmtClp(et.ahorro)} al mes.</div>`:''}`);
+  }
+  // por categoría vs promedio de los 3 meses anteriores
+  const prev=[1,2,3].map(i=>{const d=new Date(curY,curM-i,1);return monthVar(d.getFullYear(),d.getMonth());});
+  const byCat={};mv.forEach(t=>{byCat[t.category]=(byCat[t.category]||0)+t.amount;});
+  const avg={};prev.forEach(arr=>arr.forEach(t=>{avg[t.category]=(avg[t.category]||0)+t.amount/3;}));
+  const cats=[...new Set([...Object.keys(byCat),...Object.keys(avg)])].sort((a,b)=>(byCat[b]||0)-(byCat[a]||0)).slice(0,10);
+  if(cats.length){
+    let rows='';
+    cats.forEach(c=>{
+      const r=byCat[c]||0,a=Math.round(avg[c]||0),p=a?Math.round(r/a*100):(r?100:0);
+      const cc=p>110?'#e53e3e':p>85?'#dd6b20':'#38a169';
+      rows+=`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${CAT_ICO[c]||'📌'} ${c}</span><span><b>${fmtClp(r)}</b> <span style="color:var(--text3)">· prom. ${fmtClp(a)}</span></span></div>${barHtml(p,cc)}</div>`;
+    });
+    h+=cardBox(`<div class="section-head">Por categoría vs promedio de 3 meses</div>${rows}`);
+  }
+  // reembolsables y cuotas marcadas del mes
+  const mt=txns.filter(t=>t.date.slice(0,7)===k&&t.type==='cargo');
+  const rb=mt.filter(isReemb),cu=mt.filter(isCuotaLbl);
+  h+=cardBox(`<div class="section-head">Fuera del gasto variable</div>`
+    +kv(`↩️ Reembolsables (${rb.length})`,fmtClp(sumAmt(rb)))
+    +kv(`💳 Compras en cuotas marcadas (${cu.length})`,fmtClp(sumAmt(cu)))
+    +`<div style="font-size:11px;color:var(--text3);margin-top:6px">Marca una compra con la etiqueta “Reembolsable” o “Cuota” (al editarla) para que no cuente en tu meta. Los gastos fijos tampoco cuentan.</div>`);
+  // meta de ahorro / pie
+  h+=renderPie();
+  el.innerHTML=h;
+}
+function renderPie(){
+  const p=appCfg.pie;if(!p||!p.meta)return '';
+  const actual=+p.actual||0,kpi=+p.kpiExtra||0;
+  const now=new Date();let acc=0,meses=0;
+  const [hy,hm]=String(p.hasta||'').split('-').map(Number);
+  if(hy){
+    let y=now.getFullYear(),m=now.getMonth();
+    while(y<hy||(y===hy&&m<=hm-1)){acc+=(etapaFor(ymKey(y,m)).ahorro||0)+kpi;meses++;m++;if(m>11){m=0;y++;}}
+  }
+  const fin=actual+acc,pct=Math.round(actual/p.meta*100),pctF=Math.round(fin/p.meta*100);
+  const col=pctF>=100?'#38a169':pctF>=80?'#dd6b20':'#e53e3e';
+  return cardBox(`<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700">Meta de ahorro (pie)</div><div style="font-size:12px;color:var(--text2)">${fmtClp(p.meta)} a ${p.hasta||'—'}</div></div>
+    <div style="font-size:24px;font-weight:800;margin:6px 0 8px">${fmtClp(actual)} <span style="font-size:13px;font-weight:600;color:var(--text2)">${pct}%</span></div>
+    ${barHtml(pct,'#1a56db',Math.min(100,pctF))}
+    <div style="font-size:12px;color:var(--text2);margin-top:8px">Con el plan llegarías a <b style="color:${col}">${fmtClp(fin)}</b> (${pctF}%) en ${meses} meses${fin>=p.meta?'.':`; faltan ${fmtClp(p.meta-fin)}.`}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:12px;align-items:end">
+      <label style="font-size:11px;color:var(--text2)">Ahorrado hoy<input id="pieActual" type="number" inputmode="numeric" value="${actual}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px"></label>
+      <label style="font-size:11px;color:var(--text2)">KPI extra / mes<input id="pieKpi" type="number" inputmode="numeric" value="${kpi}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px"></label>
+      <button class="btn btn-p" style="padding:9px 14px;width:auto" onclick="savePie()">Guardar</button>
+    </div>`);
+}
+function savePie(){
+  appCfg.pie.actual=parseInt(document.getElementById('pieActual').value)||0;
+  appCfg.pie.kpiExtra=parseInt(document.getElementById('pieKpi').value)||0;
+  saveCfg();renderBudget();
+}
+
+// ── 4) CUADRATURA + 5) SIN CLASIFICAR + sugeridos reembolsables ──
+async function persistTx(t){
+  await api({action:'delete',id:t.id});
+  await api({action:'add',id:t.id,fecha:t.date,desc:t.description,cat:t.category,acct:t.account,tipo:t.type,monto:t.amount,etiqueta:t.label||''});
+}
+async function setCatRow(id){
+  const t=txns.find(x=>x.id===id),sel=document.getElementById('uc_'+id);if(!t||!sel)return;
+  t.category=sel.value;toast('Guardando…');
+  try{await persistTx(t);toast('✅ Reclasificado');}catch(e){toast('❌ '+e.message);}
+  renderHome();
+}
+function reembSug(){
+  if(!appCfg.reembPatrones)return[];
+  let re;try{re=new RegExp(appCfg.reembPatrones,'i');}catch(e){return[];}
+  const lim=new Date(Date.now()-75*864e5).toISOString().slice(0,10);
+  return txns.filter(t=>t.type==='cargo'&&!isReemb(t)&&t.date>=lim&&re.test(t.description));
+}
+async function marcarReemb(){
+  const L=reembSug();if(!L.length)return;
+  if(!confirm('¿Marcar '+L.length+' compras como Reembolsable ('+fmtClp(sumAmt(L))+')?'))return;
+  for(let i=0;i<L.length;i++){toast('Marcando '+(i+1)+' de '+L.length+'…');L[i].label='Reembolsable';try{await persistTx(L[i]);}catch(e){toast('❌ '+e.message);break;}}
+  toast('✅ Listo');renderHome();
+}
+function renderReview(){
+  const el=document.getElementById('reviewBox');if(!el)return;
+  const k=ymKey(curY,curM),isCur=(new Date().getFullYear()===curY&&new Date().getMonth()===curM);
+  let h='';
+  // cuadratura por cuenta
+  let rows='';
+  ACCTS.forEach(a=>{
+    const mt=txns.filter(t=>t.account===a&&t.date.slice(0,7)===k);
+    const all=txns.filter(t=>t.account===a).map(t=>t.date).sort();
+    if(!mt.length&&!all.length)return;
+    const cart=mt.filter(t=>String(t.id).startsWith('crt-')||t.label==='cartola').length;
+    const solo=mt.length-cart,last=all.length?all[all.length-1]:'';
+    const dias=last?-daysTo(last):null;
+    const flag=!isCur&&solo>0;
+    rows+=`<div style="display:grid;grid-template-columns:1.5fr .6fr .8fr .9fr;gap:6px;font-size:12px;padding:7px 0;border-top:1px solid var(--border);align-items:center">
+      <span style="font-weight:600">${a}</span><span style="text-align:right">${mt.length}</span>
+      <span style="text-align:right">${cart}</span>
+      <span style="text-align:right;${flag?'color:#dd6b20;font-weight:700':''}">${solo}${flag?' ⚠️':''}</span></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:-4px">${last?`Último movimiento: ${fmtDate(last)} (${dias===0?'hoy':'hace '+dias+' d'})`:''}</div>`;
+  });
+  h+=cardBox(`<div class="section-head">Cuadratura de ${MNTHS[curM]}</div>
+    <div style="display:grid;grid-template-columns:1.5fr .6fr .8fr .9fr;gap:6px;font-size:10px;text-transform:uppercase;color:var(--text3)"><span>Cuenta</span><span style="text-align:right">Mov.</span><span style="text-align:right">Cartola</span><span style="text-align:right">Solo Gmail/app</span></div>
+    ${rows||'<div style="font-size:13px;color:var(--text2);padding:8px 0">Sin movimientos este mes.</div>'}
+    <div style="font-size:11px;color:var(--text3);margin-top:8px">“Solo Gmail/app” son movimientos sin respaldo en una cartola. En un mes ya cerrado, revísalos: pueden faltar en la cartola o estar duplicados. El día 27 sube las cartolas y los no facturados.</div>`);
+  // sugeridos reembolsables
+  const sug=reembSug();
+  if(sug.length){
+    h+=cardBox(`<div class="section-head">↩️ Posibles reembolsables (${sug.length})</div>
+      ${sug.slice(0,8).map(t=>kv(`${fmtDate(t.date)} · ${t.description.slice(0,26)}`,fmtClp(t.amount),{mute:1})).join('')}
+      ${sug.length>8?`<div style="font-size:11px;color:var(--text3)">y ${sug.length-8} más…</div>`:''}
+      ${kv('Total',fmtClp(sumAmt(sug)),{b:1})}
+      <button class="btn btn-p" style="margin-top:10px" onclick="marcarReemb()">Marcar todas como Reembolsable</button>`);
+  }
+  // sin clasificar
+  const unc=txns.filter(t=>t.type==='cargo'&&(t.category==='Otros'||!t.category)).sort((a,b)=>b.amount-a.amount);
+  let u=`<div class="section-head">🏷️ Sin clasificar (${unc.length}${unc.length?' · '+fmtClp(sumAmt(unc)):''})</div>`;
+  if(!unc.length)u+='<div style="font-size:13px;color:var(--text2)">Todo clasificado 🎉</div>';
+  unc.slice(0,15).forEach(t=>{
+    const sug2=categorize(t.description);
+    u+=`<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${fmtDate(t.date)} · ${t.description.slice(0,28)}</span><b>${fmtClp(t.amount)}</b></div>
+      <div style="display:flex;gap:8px;margin-top:6px"><select id="uc_${t.id}" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;font-size:13px">${CATS.map(c=>`<option${c===sug2?' selected':''}>${c}</option>`).join('')}</select>
+      <button class="btn btn-p" style="width:auto;padding:7px 14px" onclick="setCatRow('${t.id}')">✔</button></div></div>`;
+  });
+  if(unc.length>15)u+=`<div style="font-size:11px;color:var(--text3);margin-top:6px">Se muestran los 15 de mayor monto.</div>`;
+  h+=cardBox(u);
+  el.innerHTML=h;
+}
+
+// ── 6) ALERTAS ──
+function renderAlerts(){
+  const box=document.getElementById('alertBox');if(!box)return;
+  const A=[],now=new Date(),Y=now.getFullYear(),M=now.getMonth(),dim=new Date(Y,M+1,0).getDate();
+  const et=etapaFor(ymKey(Y,M)),meta=et.meta||0,real=sumAmt(monthVar(Y,M));
+  if(meta){
+    const proy=Math.round(real/Math.max(now.getDate(),1)*dim);
+    if(real>meta)A.push(['r',`Gasto variable sobre la meta: ${fmtClp(real)} de ${fmtClp(meta)}`]);
+    else if(now.getDate()>=5&&proy>meta)A.push(['a',`A este ritmo cierras el mes en ${fmtClp(proy)} (meta ${fmtClp(meta)})`]);
+  }
+  if(proyTC)(proyTC.tarjetas||[]).forEach(t=>{
+    const d=daysTo(t.cierre);
+    if(d>=0&&d<=(appCfg.alertaCardDias||3))A.push(['a',`💳 ${t.nombre} cierra ${d===0?'hoy':'en '+d+' día'+(d===1?'':'s')}`]);
+    if(proyTC.actualizado&&-daysTo(proyTC.actualizado)>20)A.push(['a','🕒 La proyección de tarjetas tiene más de 20 días: sube los no facturados']);
+  });
+  const lim7=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
+  txns.filter(t=>t.type==='cargo'&&appCfg.cardAcct.includes(t.account)&&t.amount>=(appCfg.alertaGrande||150000)&&t.date>=lim7&&!isReemb(t)&&!NO_GASTO.has(t.category))
+    .slice(0,3).forEach(t=>A.push(['a',`🛍️ Compra grande con tarjeta: ${t.description.slice(0,24)} ${fmtClp(t.amount)}. ¿Es en cuotas?`]));
+  const unc=txns.filter(t=>t.type==='cargo'&&(t.category==='Otros'||!t.category)).length;
+  if(unc)A.push(['n',`🏷️ ${unc} movimiento${unc>1?'s':''} sin clasificar (pestaña Revisar)`]);
+  const sug=reembSug().length;
+  if(sug)A.push(['n',`↩️ ${sug} posible${sug>1?'s':''} reembolsable${sug>1?'s':''} sin marcar (pestaña Revisar)`]);
+  if(now.getDate()>=25&&now.getDate()<=28)A.push(['n','📅 Se acerca el día 27: sube cartolas y no facturados para cuadrar']);
+  if(!A.length){box.innerHTML='';return;}
+  const clr={r:['#fff5f5','#e53e3e'],a:['#fffaf0','#dd6b20'],n:['#ebf4ff','#1a56db']};
+  box.innerHTML=`<div style="padding:12px 14px 0">`+A.slice(0,6).map(([c,t])=>`<div style="background:${clr[c][0]};border-left:3px solid ${clr[c][1]};border-radius:8px;padding:9px 12px;margin-bottom:6px;font-size:13px">${t}</div>`).join('')+`</div>`;
+}
+
+// ── 2) PROYECCIÓN TARJETAS + GRÁFICO ──
+function proyDias(f){const d=daysTo(f);return d<0?'ya cerró':d===0?'hoy':'en '+d+' día'+(d===1?'':'s');}
 function proyRow(l,v,o){o=o||{};return `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;${o.b?'font-weight:700;border-top:1px solid var(--border);margin-top:4px;padding-top:10px':''}${o.mute?'color:var(--text2)':''}"><span>${l}</span><span>${o.neg?'−':''}${fmtClp(v)}</span></div>`;}
+let proyChartInstance=null;
+function payMonthsSeries(){
+  // meses: 5 anteriores + actual + 4 siguientes. Historial = pagos a tarjetas (categoría Pago Tarjeta). Futuro = proyección.
+  const now=new Date(),mons=[];
+  for(let i=-5;i<=4;i++){const d=new Date(now.getFullYear(),now.getMonth()+i,1);mons.push({k:ymKey(d.getFullYear(),d.getMonth()),lbl:MNTHS[d.getMonth()].slice(0,3)+' '+String(d.getFullYear()).slice(2),i});}
+  const curK=ymKey(now.getFullYear(),now.getMonth());
+  const pagado=mons.map(m=>m.i<=0?sumAmt(txns.filter(t=>t.category==='Pago Tarjeta'&&t.type==='cargo'&&t.date.slice(0,7)===m.k)):null);
+  const comp=mons.map(()=>null),est=mons.map(()=>null);
+  if(proyTC){
+    // mes de pago = mes de cierre + 1
+    const shift=ym=>{const [y,m]=ym.split('-').map(Number);return ymKey(m===12?y+1:y,m===12?0:m);};
+    let nueva=0;
+    (proyTC.tarjetas||[]).forEach(t=>{
+      nueva+=(t.compras||0)+(t.comisiones||0)-(t.reembolsable||0);
+      (t.calendario||[]).forEach(c=>{
+        const pk=shift(c.ym),ix=mons.findIndex(m=>m.k===pk);
+        if(ix>=0&&mons[ix].i>0)comp[ix]=(comp[ix]||0)+(c.comprometido||0)+(c.nuevas||0);
+      });
+    });
+    // primer mes futuro: compras ya hechas del período; siguientes: estimado igual al período actual
+    mons.forEach((m,ix)=>{if(m.i>0){let v=nueva;if(m.i===1){v=(proyTC.tarjetas||[]).reduce((s,t)=>s+(t.compras||0)+(t.comisiones||0),0);}est[ix]=v;}});
+  }
+  return {labels:mons.map(m=>m.lbl),pagado,comp,est};
+}
+function renderProyChart(){
+  const cv=document.getElementById('proyChart');if(!cv||typeof Chart==='undefined')return;
+  const s=payMonthsSeries();
+  if(proyChartInstance){proyChartInstance.destroy();proyChartInstance=null;}
+  proyChartInstance=new Chart(cv.getContext('2d'),{type:'bar',
+    data:{labels:s.labels,datasets:[
+      {label:'Pagado',data:s.pagado,backgroundColor:'rgba(26,86,219,.75)',borderRadius:4,stack:'a'},
+      {label:'Cuotas ya comprometidas',data:s.comp,backgroundColor:'rgba(221,107,32,.8)',borderRadius:4,stack:'a'},
+      {label:'Compras (período actual / estimadas)',data:s.est,backgroundColor:'rgba(160,174,192,.6)',borderRadius:4,stack:'a'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},
+      tooltip:{callbacks:{label:c=>c.raw==null?null:`${c.dataset.label}: $${Math.round(c.raw).toLocaleString('es-CL')}`}}},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:v=>'$'+(v/1000)+'k'}}}}});
+}
 async function renderProy(){
   const box=document.getElementById('proyBody');
   box.innerHTML='<div style="text-align:center;color:var(--text2);padding:30px">Cargando…</div>';
   let d;try{d=await api({action:'proytc'});}catch(e){box.innerHTML='<div style="padding:20px;color:var(--red)">No se pudo cargar la proyección.</div>';return;}
+  if(d&&d.tarjetas)proyTC=d;
   const T=(d&&d.tarjetas)||[];
   if(!T.length){box.innerHTML='<div style="padding:20px;color:var(--text2)">Aún no hay datos de proyección. Sube los movimientos no facturados para generarla.</div>';return;}
   document.getElementById('proySub').textContent='Datos al '+fmtDate(d.actualizado)+' · se actualiza al subir no facturados';
-  let tMin=0,tMax=0,h='';
+  let tot=0,tReemb=0,h='';
   T.forEach(t=>{
-    const base=t.cuotas+t.compras+t.comisiones+(t.nuevas_inciertas?0:t.nuevas_cuotas);
-    const max=base+(t.nuevas_inciertas?t.nuevas_cuotas:0);
-    tMin+=base;tMax+=max;
-    const rango=max>base?fmtClp(base)+' – '+fmtClp(max):fmtClp(base);
-    h+=`<div style="background:var(--surface);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700;font-size:16px">${t.nombre}</div><div style="font-size:12px;color:var(--text2)">cierra ${fmtDate(t.cierre)} (${proyDias(t.cierre)})</div></div>
+    const base=t.cuotas+t.compras+t.comisiones+(t.nuevas_cuotas||0);
+    tot+=base;tReemb+=t.reembolsable||0;
+    h+=cardBox(`<div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:700;font-size:16px">${t.nombre}</div><div style="font-size:12px;color:var(--text2)">cierra ${fmtDate(t.cierre)} (${proyDias(t.cierre)})</div></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Vence ${fmtDate(t.vence)}${t.vence_estimado?' (estimado)':''}</div>
-      <div style="font-size:26px;font-weight:800;margin:6px 0 10px">${rango}</div>
+      <div style="font-size:26px;font-weight:800;margin:6px 0 10px">${fmtClp(base)}</div>
       ${proyRow('Cuotas ya comprometidas',t.cuotas)}
       ${proyRow('Compras sin cuotas del período',t.compras)}
-      ${t.nuevas_cuotas&&!t.nuevas_inciertas?proyRow('Primeras cuotas de compras nuevas',t.nuevas_cuotas):''}
+      ${t.nuevas_cuotas?proyRow('Primeras cuotas de compras nuevas',t.nuevas_cuotas):''}
       ${proyRow('Comisión e impuestos (est.)',t.comisiones)}
-      ${t.nuevas_inciertas?proyRow('Si facturan ya las cuotas nuevas (+)',t.nuevas_cuotas,{mute:1}):''}
-      ${t.reembolsable?proyRow('Del total, reembolsable (trabajo / Maitencillo)',t.reembolsable,{mute:1,neg:1}):''}
-      ${t.calendario&&t.calendario.length?`<div class="section-head" style="margin-top:14px">Cuotas próximos meses</div>`+t.calendario.map(c=>proyRow(c.mes,c.comprometido+(c.nuevas||0),{mute:1})).join(''):''}
-    </div>`;
+      ${t.reembolsable?proyRow('Dentro del total, reembolsable',t.reembolsable,{mute:1}):''}
+      ${t.diferidas?proyRow('Primeras cuotas que se cobran el cierre siguiente',t.diferidas,{mute:1}):''}`);
   });
-  h=`<div style="background:var(--blue-l);border-radius:var(--r);padding:14px 16px;margin-bottom:14px"><div style="font-size:12px;color:var(--text2)">Total a pagar en diciembre</div><div style="font-size:24px;font-weight:800;color:var(--blue)">${tMax>tMin?fmtClp(tMin)+' – '+fmtClp(tMax):fmtClp(tMin)}</div></div>`+h;
+  h=`<div style="background:var(--blue-l);border-radius:var(--r);padding:14px 16px;margin-bottom:14px"><div style="font-size:12px;color:var(--text2)">Total a pagar el próximo vencimiento</div><div style="font-size:24px;font-weight:800;color:var(--blue)">${fmtClp(tot)}</div>${tReemb?`<div style="font-size:12px;color:var(--text2);margin-top:2px">Neto de reembolsables: ${fmtClp(tot-tReemb)}</div>`:''}</div>`
+    +cardBox(`<div class="section-head">Pago mensual de tarjetas</div><div style="position:relative;height:230px"><canvas id="proyChart"></canvas></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Meses pasados: lo que pagaste a tarjetas. Meses futuros: cuotas ya comprometidas más compras (las del período actual o un estimado igual a este período, sin reembolsables).</div>`)
+    +h;
   box.innerHTML=h;
+  renderProyChart();
 }
 
 // ════ NAVIGATION ════
@@ -636,6 +896,7 @@ function renderHome(){
   renderCatList(mt);
   renderAcctList(mt);
   renderPending();
+  if(typeof renderExtras==='function')renderExtras();
 }
 
 function monthTxns(){
